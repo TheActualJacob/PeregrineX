@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PeregrineX: adversarial safety testing for autonomous aircraft</title>
+<meta name="description" content="PeregrineX plugs into your existing flight simulation environment, finds the scenarios that break your autonomy stack, and turns each failure into reproducible, audit-ready certification evidence.">
+<meta name="theme-color" content="#070808">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PeregrineX">
+<meta property="og:title" content="PeregrineX: adversarial safety testing for autonomous aircraft">
+<meta property="og:description" content="PeregrineX plugs into your existing flight simulation environment, finds the scenarios that break your autonomy stack, and turns each failure into reproducible, audit-ready certification evidence.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="PeregrineX: adversarial safety testing for autonomous aircraft">
+<meta name="twitter:description" content="PeregrineX plugs into your existing flight simulation environment, finds the scenarios that break your autonomy stack, and turns each failure into reproducible, audit-ready certification evidence.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='15'%20fill='%23070808'/%3E%3Cpath%20d='M6%2046%20C20%2044%2024%2024%2034%2022%20C42%2020.5%2050%2024%2058%2016'%20fill='none'%20stroke='%23ff9f0a'%20stroke-width='4'%20stroke-linecap='round'/%3E%3Ccircle%20cx='34'%20cy='22'%20r='6.5'%20fill='%23ff453a'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#070808;
+  --card:rgba(255,255,255,.045);
+  --card-solid:#131515;
+  --hair:rgba(255,255,255,.08);
+  --hair-soft:rgba(255,255,255,.05);
+  --ink:#f5f5f7;
+  --ink-2:rgba(235,235,245,.62);
+  --ink-3:rgba(235,235,245,.38);
+  --accent:#ff9f0a;
+  --red:#ff453a;
+  --green:#30d158;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--accent);color:#1a1204}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.container{width:min(1080px,calc(100% - 3rem));margin-inline:auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:fixed;top:.8rem;left:.8rem;z-index:40;transform:translateY(-300%);background:var(--card-solid);border:1px solid var(--hair);color:var(--ink);font-size:.8rem;text-decoration:none;padding:.6rem 1rem;border-radius:980px}
+.skip:focus-visible{transform:none}
+
+/* nav */
+.top{
+  position:sticky;top:0;z-index:30;
+  background:rgba(7,8,8,.72);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--hair-soft);
+}
+.top-inner{display:flex;justify-content:space-between;align-items:center;height:52px}
+.wordmark{font-size:1.0625rem;font-weight:600;letter-spacing:-.01em;text-decoration:none}
+.top-nav{display:flex;gap:1.9rem;font-size:.8125rem}
+.top-nav a{color:var(--ink-2);text-decoration:none;transition:color .25s var(--ease)}
+.top-nav a:hover{color:var(--ink)}
+@media (max-width:719px){.top-nav a:not(.nav-contact){display:none}}
+
+/* hero */
+.hero{position:relative;text-align:center;padding-top:clamp(4.5rem,10vh,7.5rem)}
+.plane{
+  position:absolute;z-index:0;pointer-events:none;
+  top:-2%;right:-12%;
+  width:min(64vw,700px);
+  transform:rotate(-14deg);
+  opacity:.9;
+  -webkit-mask-image:linear-gradient(180deg,#000 20%,transparent 96%);
+  mask-image:linear-gradient(180deg,#000 20%,transparent 96%);
+}
+.plane path{stroke:rgba(245,245,247,.085);stroke-width:1.4;fill:none;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.hero-inner{position:relative;z-index:1}
+.eyebrow{color:var(--accent);font-size:.9375rem;font-weight:600;margin-bottom:1.1rem}
+h1{
+  font-size:clamp(2.9rem,7.4vw,5.2rem);
+  line-height:1.04;letter-spacing:-.028em;font-weight:700;
+  margin:0 auto 1.3rem;max-width:17ch;
+}
+.sub{color:var(--ink-2);font-size:clamp(1.0625rem,1.6vw,1.25rem);line-height:1.65;max-width:41rem;margin:0 auto 2.2rem}
+.cta{
+  display:inline-block;
+  background:var(--accent);color:#1a1204;
+  font-size:1rem;font-weight:600;letter-spacing:-.01em;
+  padding:.85rem 1.7rem;border-radius:980px;text-decoration:none;
+  transition:transform .3s var(--ease),filter .3s var(--ease);
+}
+.cta:hover{transform:scale(1.03);filter:brightness(1.07)}
+.cta:active{transform:scale(.98)}
+.hero-note{color:var(--ink-3);font-size:.8125rem;margin-top:1.3rem}
+
+/* visualization card */
+.viz{position:relative;z-index:1;margin-top:clamp(3rem,6vh,4.5rem)}
+.viz-card{
+  background:var(--card);
+  border:1px solid var(--hair);
+  border-radius:24px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  overflow:hidden;
+}
+.viz-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:.5rem 1.5rem;flex-wrap:wrap;
+  padding:.95rem 1.4rem;font-size:.8125rem;
+}
+.viz-row.head{border-bottom:1px solid var(--hair-soft)}
+.viz-row.vfoot{border-top:1px solid var(--hair-soft)}
+@media (max-width:600px){.viz-row{flex-direction:column;align-items:flex-start;gap:.45rem}}
+.viz-title{color:var(--ink-2);font-weight:600}
+#pstat{color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.viz-screen{
+  position:relative;
+  height:clamp(300px,42vw,460px);
+  background-image:linear-gradient(var(--hair-soft) 1px,transparent 1px),linear-gradient(90deg,var(--hair-soft) 1px,transparent 1px);
+  background-size:48px 48px;
+  background-position:center;
+}
+.viz-screen canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legend{display:flex;align-items:center;gap:1.4rem;row-gap:.4rem;flex-wrap:wrap;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:.45rem}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%}
+.legend .p{background:var(--green);opacity:.75}
+.legend .f{background:var(--red)}
+.legend .b{width:14px;height:2.5px;border-radius:2px;background:var(--accent)}
+.axes{color:var(--ink-3)}
+
+/* sections */
+.section{padding-top:clamp(5.5rem,13vh,8.5rem);scroll-margin-top:72px}
+.kicker{color:var(--accent);font-size:.9375rem;font-weight:600;text-align:center;margin-bottom:.7rem}
+h2{
+  font-size:clamp(1.9rem,4vw,2.8rem);
+  line-height:1.12;letter-spacing:-.022em;font-weight:700;
+  text-align:center;max-width:24ch;margin:0 auto;
+}
+.section-sub{color:var(--ink-2);text-align:center;max-width:38rem;margin:1rem auto 0}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;margin-top:2.8rem}
+.card{
+  background:var(--card);
+  border:1px solid var(--hair-soft);
+  border-radius:20px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  padding:1.7rem 1.6rem;
+}
+.card h3{font-size:1.125rem;font-weight:600;letter-spacing:-.014em;margin-bottom:.55rem}
+.card p{color:var(--ink-2);font-size:.9375rem;line-height:1.6}
+@media (max-width:859px){.cards{grid-template-columns:1fr}}
+
+.group{
+  background:var(--card);
+  border:1px solid var(--hair-soft);
+  border-radius:22px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+  margin-top:2.8rem;
+  overflow:hidden;
+}
+.group-row{display:grid;grid-template-columns:76px 1fr;gap:1.1rem;padding:1.8rem 1.9rem}
+.group-row + .group-row{border-top:1px solid var(--hair-soft)}
+.group-num{color:var(--accent);font-size:1.35rem;font-weight:600;line-height:1.2}
+.group-row h3{font-size:1.25rem;font-weight:600;letter-spacing:-.016em;margin-bottom:.5rem}
+.group-row p{color:var(--ink-2);font-size:1rem;max-width:46rem}
+@media (max-width:559px){.group-row{grid-template-columns:1fr;gap:.5rem;padding:1.5rem 1.3rem}}
+
+.facts .group-row{align-items:center;padding:1.35rem 1.9rem}
+.facts .group-num{font-size:1.05rem}
+.facts p{color:var(--ink);font-size:1.0625rem;max-width:none}
+
+/* principle */
+.principle{padding:clamp(6rem,15vh,9.5rem) 0 0}
+.principle p{
+  text-align:center;
+  font-size:clamp(1.6rem,3.6vw,2.6rem);
+  line-height:1.3;letter-spacing:-.02em;font-weight:600;
+  max-width:52rem;margin:0 auto;
+}
+.principle .dim{color:var(--ink-3)}
+
+/* footer */
+.site-foot{
+  margin-top:clamp(5.5rem,13vh,8.5rem);
+  border-top:1px solid var(--hair-soft);
+  padding:2.4rem 0 3rem;
+  text-align:center;
+  font-size:.8125rem;color:var(--ink-3);
+}
+.site-foot a{color:var(--ink-2);text-decoration:none}
+.site-foot a:hover{color:var(--ink)}
+.site-foot span{display:block;margin-top:.5rem}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+</style>
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="container top-inner">
+    <a class="wordmark" href="#">PeregrineX</a>
+    <nav class="top-nav" aria-label="Site">
+      <a href="#problem">Problem</a>
+      <a href="#method">Method</a>
+      <a href="#why-now">Why now</a>
+      <a class="nav-contact" href="mailto:[EMAIL]">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <svg class="plane" viewBox="0 0 400 512" aria-hidden="true">
+      <path d="M200 10 C209 20 213 36 213 58 L213 176 L386 290 L386 308 L213 246 L213 416 L288 468 L288 482 L211 450 L206 500 L194 500 L189 450 L112 482 L112 468 L187 416 L187 246 L14 308 L14 290 L187 176 L187 58 C187 36 191 20 200 10 Z"/>
+    </svg>
+    <div class="container hero-inner">
+      <p class="eyebrow">Adversarial safety testing for autonomous aircraft</p>
+      <h1>How do you know it&rsquo;s safe?</h1>
+      <p class="sub">The FAA will ask. PeregrineX finds the scenarios that break autonomous aircraft, and turns them into the evidence that answers the question.</p>
+      <a class="cta" href="mailto:[EMAIL]?subject=Design%20partner%20inquiry">Become a design partner</a>
+      <p class="hero-note">Pre-product. Recruiting design partners across defense, cargo, and air taxi programs.</p>
+    </div>
+    <div class="container viz reveal">
+      <figure class="viz-card" role="img" aria-label="Diagram: scenario samples scattered across a two dimensional parameter space. Most pass. A search concentrates around a thin curving failure boundary where samples turn red.">
+        <div class="viz-row head" aria-hidden="true">
+          <span class="viz-title">Scenario parameter space</span>
+          <span id="pstat">Run 1 &middot; 0 samples &middot; 0 failures</span>
+        </div>
+        <div class="viz-screen">
+          <canvas id="space"></canvas>
+        </div>
+        <div class="viz-row vfoot" aria-hidden="true">
+          <span class="legend">
+            <span><i class="p"></i>Pass</span>
+            <span><i class="f"></i>Fail</span>
+            <span><i class="b"></i>Boundary estimate</span>
+          </span>
+          <span class="axes">Crosswind &times; sensor dropout</span>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section id="problem" class="container section">
+    <p class="kicker">The problem</p>
+    <h2>Today, proof of safety is built by hand.</h2>
+    <div class="cards">
+      <div class="card reveal">
+        <h3>Scripted by intuition</h3>
+        <p>Test engineers write the scenarios they can think of. The safety case becomes a list of guesses about which conditions matter. Coverage ends where intuition ends.</p>
+      </div>
+      <div class="card reveal">
+        <h3>Failures are combinations</h3>
+        <p>The dangerous failures are rarely single faults. They are combinations of individually manageable conditions: a gusting crosswind, a degraded sensor, an unexpected instruction. People do not enumerate that space. It is too large.</p>
+      </div>
+      <div class="card reveal">
+        <h3>Proof is the bottleneck</h3>
+        <p>A working prototype is not a certified aircraft. The distance between them is evidence, and building that evidence is the slowest step in the program.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="method" class="container section">
+    <p class="kicker">How it works</p>
+    <h2>From simulation to sign-off.</h2>
+    <ol class="group" style="list-style:none">
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">1</span>
+        <div>
+          <h3>Generate adversarial scenarios</h3>
+          <p>PeregrineX plugs into the flight simulation environment you already run. It generates rare but plausible scenarios designed to break the autonomy stack: combinations of weather, system failures, sensor degradation, traffic, and air traffic control behavior. Not the cases a test engineer would script. The ones between them.</p>
+        </div>
+      </li>
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">2</span>
+        <div>
+          <h3>Search for the failure boundary</h3>
+          <p>ML-guided search concentrates sampling where behavior starts to degrade, then finds the exact conditions under which the stack makes an unsafe decision. This is falsification, not demonstration. Each failure is minimized to its root cause and made reproducible: same seed, same scenario, same outcome.</p>
+        </div>
+      </li>
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">3</span>
+        <div>
+          <h3>Export certification evidence</h3>
+          <p>Every failure, and every clean sweep, is packaged as audit-ready certification evidence: versioned, seeded, and traceable to FAA requirements. Coverage an auditor can inspect. Runs an auditor can repeat. Evidence built for sign-off.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section id="why-now" class="container section">
+    <p class="kicker">Why now</p>
+    <h2 class="sr-only">Why now</h2>
+    <ul class="group facts" style="list-style:none">
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">1</span>
+        <p>The US Air Force awarded production contracts for its first autonomous fighter drones in June 2026.</p>
+      </li>
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">2</span>
+        <p>The FAA&rsquo;s Part 108 rule for routine beyond-visual-line-of-sight drone operations is in final review.</p>
+      </li>
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">3</span>
+        <p>ED-324, the first certification standard for AI in aviation, is being published this year.</p>
+      </li>
+      <li class="group-row reveal">
+        <span class="group-num" aria-hidden="true">4</span>
+        <p>The first autonomous air taxis are in FAA type certification flight testing now.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="principle">
+    <div class="container reveal">
+      <p><span class="dim">Self-driving proved the demo is easy and trust takes a decade.</span> Aviation doesn&rsquo;t get a decade per aircraft.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <a href="mailto:[EMAIL]">[EMAIL]</a>
+    <span>&copy; 2026 PeregrineX</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var canvas=document.getElementById('space');
+  if(!canvas||!canvas.getContext)return;
+  var ctx=canvas.getContext('2d');
+  var stat=document.getElementById('pstat');
+  var TAU=Math.PI*2,RUN_LEN=52,FADE_LEN=3;
+  var W=0,H=0,raf=0,runN=0,run=null,lastT=0,visible=true,statAcc=0;
+  var mql=window.matchMedia('(prefers-reduced-motion: reduce)');
+  var forceStatic=new URLSearchParams(location.search).has('static');
+
+  function staticMode(){return mql.matches||forceStatic}
+  function clamp(v,a,b){return v<a?a:v>b?b:v}
+  function randn(){
+    var u=0,v=0;
+    while(!u)u=Math.random();
+    while(!v)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*v);
+  }
+  function smooth(v){v=clamp(v,0,1);return v*v*(3-2*v)}
+
+  function fit(){
+    var r=canvas.parentElement.getBoundingClientRect();
+    var d=Math.min(window.devicePixelRatio||1,2);
+    W=r.width;H=r.height;
+    canvas.width=Math.round(W*d);
+    canvas.height=Math.round(H*d);
+    ctx.setTransform(d,0,0,d,0,0);
+  }
+
+  function newRun(){
+    runN++;
+    var a1=.07+Math.random()*.05,f1=1.1+Math.random()*.6,p1=Math.random()*TAU;
+    var a2=.03+Math.random()*.03,f2=2.6+Math.random()*1.2,p2=Math.random()*TAU;
+    var tilt=(Math.random()-.5)*.16;
+    var xd=.25+Math.random()*.5,dip=.14+Math.random()*.1,dw=.05+Math.random()*.04;
+    var f=function(x){
+      return clamp(
+        .66+a1*Math.sin(x*f1*TAU+p1)+a2*Math.sin(x*f2*TAU+p2)+tilt*(x-.5)
+        -dip*Math.exp(-((x-xd)*(x-xd))/(2*dw*dw)),
+        .30,.88);
+    };
+    return {f:f,xd:xd,t:0,dots:[],samples:0,fails:0,acc:0};
+  }
+
+  function pushDot(x,y,born){
+    var fail=y>run.f(x);
+    run.dots.push({x:x,y:y,fail:fail,born:born});
+    run.samples++;
+    if(fail)run.fails++;
+    if(run.dots.length>1800)run.dots.splice(0,run.dots.length-1800);
+  }
+
+  function addSample(k,sigma){
+    var x,y;
+    if(Math.random()<(.12+.83*k)){
+      x=Math.random()<.38?clamp(run.xd+randn()*.09,0,1):Math.random();
+      y=clamp(run.f(x)+randn()*sigma,0,1);
+    }else{
+      x=Math.random();y=Math.random();
+    }
+    pushDot(x,y,run.t);
+  }
+
+  function px(x){return 8+x*(W-16)}
+  function py(y){return 8+(1-y)*(H-16)}
+
+  function dot(cx,cy,r,style){
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,TAU);
+    ctx.fillStyle=style;
+    ctx.fill();
+  }
+
+  function drawDots(fade){
+    var i,d,age,base,a,cx,cy;
+    for(i=0;i<run.dots.length;i++){
+      d=run.dots[i];
+      age=run.t-d.born;
+      base=Math.min(age/.5,1)*(0.34+0.66*Math.exp(-age/9))*fade;
+      cx=px(d.x);cy=py(d.y);
+      if(d.fail){
+        a=.9*base;
+        dot(cx,cy,3.4,'rgba(255,69,58,'+(a*.22).toFixed(3)+')');
+        dot(cx,cy,1.7,'rgba(255,69,58,'+a.toFixed(3)+')');
+      }else{
+        a=.34*base;
+        dot(cx,cy,1.6,'rgba(48,209,88,'+a.toFixed(3)+')');
+      }
+    }
+  }
+
+  function drawBoundary(prog,fade){
+    if(prog<=0)return;
+    var n=72,i,x,y;
+    ctx.beginPath();
+    for(i=0;i<=n;i++){
+      x=(i/n)*prog;
+      y=run.f(x);
+      if(i===0)ctx.moveTo(px(x),py(y));
+      else ctx.lineTo(px(x),py(y));
+    }
+    ctx.lineCap='round';
+    ctx.strokeStyle='rgba(255,159,10,'+(0.12*prog*fade).toFixed(3)+')';
+    ctx.lineWidth=5;
+    ctx.stroke();
+    ctx.strokeStyle='rgba(255,159,10,'+(0.6*prog*fade).toFixed(3)+')';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+
+  function setStat(mode){
+    stat.textContent='Run '+runN+' · '+run.samples+' samples · '+run.fails+' failures'+(mode?' · '+mode:'');
+  }
+
+  function frame(now){
+    raf=requestAnimationFrame(frame);
+    if(!visible){lastT=now;return}
+    var dt=Math.min((now-lastT)/1000,.05);
+    lastT=now;
+    run.t+=dt;
+    if(run.t>RUN_LEN+FADE_LEN)run=newRun();
+    var k=smooth((run.t-5)/25);
+    var sigma=.28-.255*k;
+    if(run.t<RUN_LEN){
+      run.acc+=dt*1000;
+      var iv=95-47*k;
+      while(run.acc>iv){run.acc-=iv;addSample(k,sigma)}
+    }
+    var fade=run.t>RUN_LEN?clamp(1-(run.t-RUN_LEN)/FADE_LEN,0,1):1;
+    ctx.clearRect(0,0,W,H);
+    drawDots(fade);
+    drawBoundary(smooth((run.t-16)/22),fade);
+    statAcc+=dt;
+    if(statAcc>.3){
+      statAcc=0;
+      setStat(run.t<5?'exploring':run.t<16?'searching':run.t<RUN_LEN?'refining':'resetting');
+    }
+  }
+
+  function staticScene(){
+    runN=0;
+    run=newRun();
+    run.t=40;
+    var i,x,y;
+    for(i=0;i<230;i++){
+      pushDot(Math.random(),Math.random(),run.t-(1+Math.random()*18));
+    }
+    for(i=0;i<470;i++){
+      x=Math.random()<.38?clamp(run.xd+randn()*.09,0,1):Math.random();
+      y=clamp(run.f(x)+randn()*.034,0,1);
+      pushDot(x,y,run.t-(1+Math.random()*18));
+    }
+    setStat('complete');
+  }
+
+  function staticPaint(){
+    ctx.clearRect(0,0,W,H);
+    drawDots(1);
+    drawBoundary(1,1);
+  }
+
+  function boot(){
+    cancelAnimationFrame(raf);
+    fit();
+    if(staticMode()){
+      staticScene();
+      staticPaint();
+    }else{
+      runN=0;
+      run=newRun();
+      lastT=performance.now();
+      statAcc=0;
+      raf=requestAnimationFrame(frame);
+    }
+  }
+
+  if(window.ResizeObserver){
+    new ResizeObserver(function(){
+      if(!canvas.parentElement.clientWidth)return;
+      fit();
+      if(staticMode()&&run)staticPaint();
+    }).observe(canvas.parentElement);
+  }else{
+    window.addEventListener('resize',function(){
+      fit();
+      if(staticMode()&&run)staticPaint();
+    });
+  }
+
+  if(window.IntersectionObserver){
+    new IntersectionObserver(function(entries){
+      visible=entries[0].isIntersecting;
+    }).observe(canvas.parentElement);
+  }
+
+  if(mql.addEventListener)mql.addEventListener('change',boot);
+
+  boot();
+})();
+
+(function(){
+  var els=document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)||window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    els.forEach(function(el){el.classList.add('in')});
+    return;
+  }
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  },{threshold:.15,rootMargin:'0px 0px -40px 0px'});
+  els.forEach(function(el){io.observe(el)});
+})();
+</script>
+</body>
+</html>
