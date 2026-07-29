@@ -1,6 +1,6 @@
 # PeregrineX
 
-Single-page marketing site. One static HTML file plus a small `assets/` folder — no build step, no dependencies.
+Single-page marketing site, served by GitHub Pages from `docs/` on `main`. One static HTML file plus a small `assets/` folder — no build step, no dependencies.
 
 ## Structure
 
