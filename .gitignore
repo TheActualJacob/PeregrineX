@@ -3,3 +3,4 @@ sim/
 deck/
 analysis_px4/worst_ulogs/
 kaggle/artifacts/px4_neural_first_flight/*.ulg
+__pycache__/
