@@ -1,0 +1,15 @@
+ proxy     raw    phys   failPts  lhsFail   bndPts  lhsBnd  bndRatio  failRatio
+   gbm   1.581   1.586     127.8    120.6    106.0    29.8      3.56       1.06
+    rf   1.776   1.780     146.4    123.0    139.8    39.4      3.55       1.19
+   mlp   2.177   2.064     132.8     88.0    110.2    23.6      4.67       1.51
+  MEAN   1.845   1.810
+
+bndPts/lhsBnd = boundary-band points (|margin|<0.10) found vs LHS.
+If bndRatio >> failRatio, the advantage is boundary MAPPING, not
+merely crash-finding -- the certification-relevant claim.
+
+raw ratio  = the reported metric (cells as prepare.py counts them)
+phys ratio = same, collapsing the inert u5 coordinate when u4<0.5
+A large raw-minus-phys gap would mean the win is partly inert-dim
+farming; a small gap means the discoveries are physically distinct.
+Per-proxy spread shows whether the win is proxy-specific.

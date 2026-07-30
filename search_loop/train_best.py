@@ -29,13 +29,13 @@ from scipy.special import ndtr
 import prepare
 
 # ---- EDITABLE HYPERPARAMETERS ----
-WARMUP = 28            # LHS queries before the surrogate takes over
+WARMUP = 20            # LHS queries before the surrogate takes over
 N_UNIF = 600           # uniform candidates (global exploration)
 N_BASE = 90            # random bases for 1-D level-set sweeps
 N_GRID = 11            # grid points per sweep
 N_PERT = 500           # elite perturbations along flat directions
 PERT = 0.5             # perturbation scale (x lengthscale)
-ARD_EVERY = 25         # queries between ARD lengthscale re-fits
+ARD_EVERY = 15         # queries between ARD lengthscale re-fits
 L_INIT = 0.45          # initial isotropic lengthscale (u-space)
 L_MIN, L_MAX = 0.06, 12.0
 SD_FLOOR = 0.02        # floor on posterior sd (guards over-confident probs)

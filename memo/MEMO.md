@@ -140,9 +140,9 @@ sampling at the same budget and seeds.
 
 | | vs uniform sampling |
 |---|---|
-| Composite coverage ratio | 1.54× |
-| **Boundary-band points found** | **2.99× / 3.07× / 3.42×** (GBM / RF / MLP proxy) |
-| Failure points found | 1.07–1.23× |
+| Composite coverage ratio | 1.77× |
+| **Boundary-band points found** | **3.56× / 3.55× / 4.67×** (GBM / RF / MLP proxy) |
+| Failure points found | 1.06–1.51× |
 
 The method: an ARD Gaussian-process surrogate with marginal-likelihood
 lengthscales (scenario sensitivity varies ~20× across dimensions), driven by an

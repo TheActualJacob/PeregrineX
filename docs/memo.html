@@ -188,15 +188,21 @@ a{color:inherit}
   seeds.</p>
   <table>
     <tr><th></th><th>vs uniform sampling</th></tr>
-    <tr><td>Composite coverage ratio</td><td>1.54&times;</td></tr>
-    <tr><td><strong>Boundary-band points found</strong></td><td class="hot">2.99&times; / 3.07&times; / 3.42&times; (GBM / RF / MLP proxy)</td></tr>
-    <tr><td>Failure points found</td><td>1.07&ndash;1.23&times;</td></tr>
+    <tr><td>Composite coverage ratio</td><td>1.77&times;</td></tr>
+    <tr><td><strong>Boundary-band points found</strong></td><td class="hot">3.56&times; / 3.55&times; / 4.67&times; (GBM / RF / MLP proxy)</td></tr>
+    <tr><td>Failure points found</td><td>1.06&ndash;1.51&times;</td></tr>
   </table>
   <p>The method: an ARD Gaussian-process surrogate with marginal-likelihood lengthscales
   (scenario sensitivity varies ~20&times; across dimensions), driven by an
   expected-coverage-improvement acquisition over the cell partition rather than margin
   minimization, with observations Winsorized so the surrogate spends its capacity on the level
-  set instead of modeling crash plateaus that earn no additional coverage.</p>
+  set instead of modeling crash plateaus that earn no additional coverage. Developed across
+  ~40 logged trials by an autonomous research loop; the single largest gain came from
+  optimizing the acquisition surface properly rather than taking argmax over a candidate pool
+  &mdash; engineering, not exotica. An instructive negative: a random-forest surrogate is the
+  <em>better offline regressor</em> and clearly <em>worse in the loop</em> &mdash; its
+  piecewise-constant posterior gives the acquisition optimizer nothing to climb. Better
+  offline accuracy does not imply better sequential search.</p>
   <p><strong>Audit.</strong> Two ways this claim could be soft, both checked: collapsing a
   physically inert coordinate changes the ratio by 0.9% (the discoveries are distinct
   scenarios, not bookkeeping), and the advantage holds across all three surrogate families. A
@@ -236,6 +242,12 @@ a{color:inherit}
     <li><strong>The search result is measured on proxy oracles</strong>, developed offline
     against a 2,000-run baseline rather than live runs. Live confirmation on the neural
     controller is the immediate next step.</li>
+    <li><strong>The search is strictly sequential</strong> &mdash; one query at a time. A real
+    farm runs simulations in parallel, and batched acquisition costs efficiency; the farm
+    number will be lower than the sequential one.</li>
+    <li><strong>The surrogate, not the search, is the binding constraint.</strong> The
+    identical search against a cheating oracle scores 2.63&times; composite &mdash; the gap
+    from 1.77 is entirely model error, and rougher real margin surfaces will widen it.</li>
   </ul>
 
   <h2><span class="no">07</span>Where this goes</h2>

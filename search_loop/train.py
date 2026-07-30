@@ -25,40 +25,23 @@ import time
 import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 from scipy.special import ndtr
-from sklearn.ensemble import RandomForestRegressor
 
 import prepare
 
 # ---- EDITABLE HYPERPARAMETERS ----
-WARMUP = 28            # LHS queries before the surrogate takes over
+WARMUP = 20            # LHS queries before the surrogate takes over
 N_UNIF = 600           # uniform candidates (global exploration)
 N_BASE = 90            # random bases for 1-D level-set sweeps
 N_GRID = 11            # grid points per sweep
 N_PERT = 500           # elite perturbations along flat directions
 PERT = 0.5             # perturbation scale (x lengthscale)
-ARD_EVERY = 25         # queries between ARD lengthscale re-fits
+ARD_EVERY = 15         # queries between ARD lengthscale re-fits
 L_INIT = 0.45          # initial isotropic lengthscale (u-space)
 L_MIN, L_MAX = 0.06, 12.0
 SD_FLOOR = 0.02        # floor on posterior sd (guards over-confident probs)
 SD_SCALE = 1.0         # scale on candidate posterior sd (<1 = optimistic)
 BND_WEIGHT = 2.0       # weight on the double-credit boundary term
 KERNEL = "rbf"         # "rbf" (smooth) or "exp" (Matern-1/2, rougher)
-SURROGATE = "gp"       # "gp" or "forest". Measured on 200 noisy points, a
-                       # random forest beats the ARD-GP on ALL three proxies
-                       # (RMSE gbm .130 vs .165, rf .094 vs .121, mlp .182 vs
-                       # .183) -- the margin surface has axis-aligned
-                       # threshold/regime structure that a stationary RBF
-                       # kernel smooths away. The GP is retained either way as
-                       # the source of ARD lengthscales for candidate
-                       # generation, since a forest gives no natural metric.
-N_TREES = 60
-FOREST_EVERY = 4       # queries between forest refits
-FOREST_SD_K = 1.0      # calibration on the per-tree spread used as sigma
-ADD_MIX = 0.0          # 0 = pure product (fully interacting) RBF kernel,
-                       # 1 = purely additive (main effects only). With only 200
-                       # noisy points in 8-D a product kernel is starved; an
-                       # additive kernel estimates per-dim main effects from all
-                       # 200 points at once. The mixture keeps some interaction.
 Y_CLIP = 0.28          # >0: clip observations to +-Y_CLIP before fitting, so
                        # the GP spends its capacity near the level set instead
                        # of on the +-1.5 crash-clamp plateaus
@@ -87,10 +70,7 @@ class _GP:
         return np.exp(-0.5 * np.maximum(d2, 0.0))
 
     def _K(self, w):
-        if ADD_MIX <= 0.0:
-            return self._shape(self.D @ w)
-        E = self._shape(self.D * w)                    # (n, n, d) per-dim
-        return (1.0 - ADD_MIX) * E.prod(-1) + ADD_MIX * E.mean(-1)
+        return self._shape(self.D @ w)
 
     def _factor(self, w, s2n):
         K = self._K(w)
@@ -153,36 +133,10 @@ class _GP:
         d = ((C * C) @ self.w)[:, None] + ((self.X * Xw).sum(1))[None, :] \
             - 2.0 * (C @ Xw.T)
         Ks = self._shape(d)
-        if ADD_MIX > 0.0:
-            add = np.zeros_like(Ks)
-            for j in range(self.dims):
-                dj = C[:, j][:, None] - self.X[None, :, j]
-                add += self._shape(self.w[j] * dj * dj)
-            Ks = (1.0 - ADD_MIX) * Ks + ADD_MIX * (add / self.dims)
         mu = Ks @ self.alpha
         V = cho_solve(self.c, Ks.T, check_finite=False)
         var = np.maximum(1.0 - np.einsum("ij,ji->i", Ks, V), 1e-9)
         return mu * self.ys + self.ym, np.sqrt(var) * self.ys
-
-
-class _Forest:
-    """Bootstrap random forest. Mean over trees = mu, spread over trees = sd,
-    out-of-bag predictions = denoised estimate of the truth at queried points."""
-
-    def fit(self, X, y):
-        self.m = RandomForestRegressor(
-            n_estimators=N_TREES, min_samples_leaf=2, oob_score=True,
-            n_jobs=1, random_state=0, bootstrap=True)
-        self.m.fit(X, y)
-        oob = np.asarray(self.m.oob_prediction_, dtype=float)
-        ins = self.m.predict(X)
-        self.mu_tr = np.where(np.isfinite(oob), oob, ins)
-        per = np.stack([t.predict(X) for t in self.m.estimators_])
-        self.sd_tr = per.std(0) * FOREST_SD_K
-
-    def predict(self, C):
-        per = np.stack([t.predict(C) for t in self.m.estimators_])
-        return per.mean(0), per.std(0) * FOREST_SD_K
 
 
 def _codes(U):
@@ -198,14 +152,12 @@ class Strategy:
         self.warm = ((rng.permuted(np.tile(np.arange(n), (dims, 1)).T, axis=0)
                       + rng.random((n, dims))) / n).tolist()
         self.gp = _GP(dims)
-        self.forest = _Forest() if SURROGATE == "forest" else None
-        self.n_ard = self.n_fit = 0
-        self.mu_tr = self.sd_tr = None
+        self.n_ard = 0
 
     # -- credited-cell bookkeeping ----------------------------------------
     def _credited(self):
         """Prob. that each cell is already credited for fail / boundary."""
-        mu, sd = self.mu_tr, np.maximum(self.sd_tr, SD_FLOOR)
+        mu, sd = self.gp.mu_tr, np.maximum(self.gp.sd_tr, SD_FLOOR)
         pf = ndtr(-mu / sd)
         pb = ndtr((prepare.BOUNDARY_THR - mu) / sd) \
             - ndtr((-prepare.BOUNDARY_THR - mu) / sd)
@@ -242,7 +194,7 @@ class Strategy:
 
         if N_PERT:
             hi, lo = prepare.BOUNDARY_THR, -2.0 * prepare.BOUNDARY_THR
-            el = np.flatnonzero((self.mu_tr < hi) & (self.mu_tr > lo))
+            el = np.flatnonzero((self.gp.mu_tr < hi) & (self.gp.mu_tr > lo))
             if len(el):
                 idx = self.rng.choice(el, size=N_PERT)
                 step = PERT * np.minimum(l, 1.0)
@@ -255,31 +207,11 @@ class Strategy:
         if self.warm:
             return np.asarray(self.warm.pop())
         X, y = np.asarray(self.X), np.asarray(self.y)
-        if self.forest is None or len(X) >= self.n_ard + ARD_EVERY:
-            # the GP is refit every step in gp mode; in forest mode it is kept
-            # alive only to supply ARD lengthscales for candidate generation
-            self.gp.set_data(X, y)
-            if len(X) >= self.n_ard + ARD_EVERY:
-                self.gp.tune()
-                self.n_ard = len(X)
-            self.gp.fit()
-        if self.forest is None:
-            self.mu_tr, self.sd_tr = self.gp.mu_tr, self.gp.sd_tr
-        else:
-            if len(X) >= self.n_fit + FOREST_EVERY or self.mu_tr is None:
-                self.forest.fit(X, np.clip(y, -Y_CLIP, Y_CLIP)
-                                if Y_CLIP > 0 else y)
-                self.n_fit = len(X)
-            # the forest is refit only every FOREST_EVERY queries, so points
-            # observed since then are represented by their own raw observation
-            # (an unbiased, if noisy, estimate of the truth there)
-            k, n = len(self.forest.mu_tr), len(X)
-            self.mu_tr, self.sd_tr = self.forest.mu_tr, self.forest.sd_tr
-            if n > k:
-                ex = np.clip(y[k:], -Y_CLIP, Y_CLIP) if Y_CLIP > 0 else y[k:]
-                self.mu_tr = np.concatenate([self.mu_tr, ex])
-                self.sd_tr = np.concatenate(
-                    [self.sd_tr, np.full(n - k, prepare.NOISE_SIGMA)])
+        self.gp.set_data(X, y)
+        if len(X) >= self.n_ard + ARD_EVERY:
+            self.gp.tune()
+            self.n_ard = len(X)
+        self.gp.fit()
         qf, qb = self._credited()
 
         cand = self._candidates()
@@ -304,7 +236,7 @@ class Strategy:
         return u
 
     def _acq(self, cand, qf, qb):
-        mu, sd = (self.forest if self.forest is not None else self.gp).predict(cand)
+        mu, sd = self.gp.predict(cand)
         sd = np.maximum(sd * SD_SCALE, SD_FLOOR)
         p_fail = ndtr(-mu / sd)
         p_bnd = ndtr((prepare.BOUNDARY_THR - mu) / sd) \
