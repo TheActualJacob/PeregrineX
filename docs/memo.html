@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adversarial evidence for learned flight control — PeregrineX</title>
+<meta name="description" content="A failure characterization of PX4's mainline neural controller, and a search method that maps safety boundaries ~3x faster than brute force. 800 flights, every number regenerable.">
+<meta name="theme-color" content="#0a0d11">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="PeregrineX">
+<meta property="og:title" content="Adversarial evidence for learned flight control">
+<meta property="og:description" content="Pass/fail testing rates PX4's neural controller equivalent to PID. It loses lateral control in 94% of its crashes; PID in 0%. 800 flights, audited methods, plain caveats.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0d11'/%3E%3Ccircle cx='32' cy='32' r='21' fill='none' stroke='%2384d69c' stroke-opacity='.45' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='11' fill='none' stroke='%2384d69c' stroke-opacity='.25' stroke-width='1.5'/%3E%3Cpath d='M32 8 L32 24' stroke='%2384d69c' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='29' y='29' width='6' height='6' transform='rotate(45 32 32)' fill='%2384d69c'/%3E%3Cpath d='M40 42 l8 8 m0 -8 l-8 8' stroke='%23ef6b60' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=B612:ital,wght@0,400;0,700;1,400&family=B612+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink0:#0a0d11;--ink1:#0e1319;--hair:rgba(168,190,216,.16);
+  --text:#e8ecf2;--text2:#a4aebc;--text3:#6b7684;
+  --paper:#f3efe6;--paper2:#eae5d8;--paper-ink:#191b1e;--paper-ink2:#5c5f63;
+  --paper-hair:rgba(25,27,30,.14);
+  --safe:#6f92c8;--fail:#d64541;--fail-deep:#a83530;--caution:#8a6a1f;--scope:#84d69c;
+  --disp:"Barlow Condensed","Arial Narrow",sans-serif;
+  --sans:"B612",-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"B612 Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--ink0)}
+body{font-family:var(--sans);background:var(--ink0);color:var(--text);line-height:1.65;
+  -webkit-font-smoothing:antialiased;padding:clamp(1rem,4vw,3rem) clamp(.8rem,3vw,2rem) 5rem}
+::selection{background:var(--fail);color:#fff4f2}
+img{max-width:100%;height:auto;display:block}
+.back{display:inline-block;font-family:var(--mono);font-size:.75rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--text3);text-decoration:none;margin-bottom:1.6rem}
+.back:hover{color:var(--scope)}
+.sheet{max-width:52rem;margin-inline:auto;background:var(--paper);color:var(--paper-ink);
+  border-radius:6px;padding:clamp(1.6rem,5vw,4rem);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.doc-head{border-bottom:2px solid var(--paper-ink);padding-bottom:1.4rem;margin-bottom:2rem}
+.doc-head .stamp{font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--paper-ink2);display:flex;justify-content:space-between;
+  flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem}
+h1{font-family:var(--disp);font-weight:700;font-size:clamp(1.9rem,5vw,2.9rem);
+  line-height:1.06;letter-spacing:.005em;text-transform:uppercase}
+.sub{font-size:1.02rem;color:var(--paper-ink2);margin-top:.8rem;max-width:44rem}
+h2{font-family:var(--disp);font-weight:600;font-size:1.45rem;text-transform:uppercase;
+  letter-spacing:.02em;margin:2.6rem 0 .9rem;padding-top:1.6rem;border-top:1px solid var(--paper-hair)}
+h2 .no{color:var(--fail);margin-right:.5rem;font-family:var(--mono);font-size:1rem;vertical-align:.14em}
+p{margin:.85rem 0;max-width:46rem}
+strong{font-weight:700}
+em{font-style:italic}
+ul{margin:.85rem 0 .85rem 1.3rem;max-width:44rem}
+li{margin:.45rem 0}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0;font-size:.92rem}
+th{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--paper-ink2);text-align:left;padding:.5rem .7rem;border-bottom:2px solid var(--paper-ink)}
+td{padding:.5rem .7rem;border-bottom:1px solid var(--paper-hair);font-family:var(--mono);font-size:.88rem}
+td:first-child{font-family:var(--sans)}
+.hot{color:var(--fail-deep);font-weight:700}
+.cool{color:var(--safe);font-weight:700}
+figure{margin:1.6rem 0}
+figure img{border:1px solid var(--paper-hair);border-radius:4px}
+figcaption{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;color:var(--paper-ink2);
+  margin-top:.5rem;display:flex;justify-content:space-between}
+.callout{background:var(--paper2);border-left:3px solid var(--fail);border-radius:3px;
+  padding:.9rem 1.1rem;margin:1.3rem 0;max-width:46rem}
+.callout.amber{border-left-color:var(--caution)}
+.foot{font-family:var(--mono);font-size:.72rem;color:var(--paper-ink2);border-top:1px solid var(--paper-hair);
+  margin-top:2.6rem;padding-top:1.1rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+video{width:100%;border:1px solid var(--paper-hair);border-radius:4px}
+a{color:inherit}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">&larr; PeregrineX</a>
+<article class="sheet">
+  <header class="doc-head">
+    <div class="stamp"><span>PeregrineX &middot; technical memo</span><span>30 Jul 2026 &middot; rev A</span></div>
+    <h1>Adversarial evidence for learned flight control</h1>
+    <p class="sub">A failure characterization of PX4&rsquo;s mainline neural controller, and a search
+    method that maps safety boundaries ~3&times; faster than brute force. Produced in one
+    continuous build on a laptop and free cloud CPU; every number regenerates from archived
+    scenario files and flight logs.</p>
+  </header>
+
+  <h2><span class="no">00</span>Summary</h2>
+  <p>Neural networks are arriving in certifiable flight control faster than the methods to
+  verify them. PX4 merged a TensorFlow-Lite neural position controller
+  (<code>mc_nn_control</code>) into mainline; the FAA has flight-tested a camera-based neural
+  landing system with Daedalean explicitly to inform future ML certification policy; EASA&rsquo;s
+  MLEAP and CoDANN work is building the learning-assurance framework. What does not exist is a
+  practical way to generate the evidence those frameworks will demand.</p>
+  <p>We built one and pointed it at the neural controller that ships in PX4 today. Two results:</p>
+  <p><strong>1. Pass/fail testing cannot distinguish a neural controller from a classical one
+  that fails far more safely.</strong> Across 800 adversarial flights the two controllers show
+  similar failure rates (27.0% vs 24.5%) and an identical crash boundary &mdash; but when the
+  neural controller fails it loses lateral position control in <strong>94% of cases
+  (102/108)</strong>, where the classical stack does so in <strong>0% (0/92)</strong>.</p>
+  <p><strong>2. Guided adversarial search maps the safety boundary ~3&times; more
+  sample-efficiently than uniform sampling</strong>, verified across three independent
+  surrogate models and audited against metric artifacts.</p>
+
+  <h2><span class="no">01</span>Why this matters now</h2>
+  <p>Certification of learned components is an open problem with a closing deadline. The
+  regulatory scaffolding is arriving (EASA MLEAP final report; CoDANN I/II; SAE G-34 / EUROCAE
+  WG-114 with ED-324), and so are the aircraft: FAA Part 108 BVLOS rulemaking, eVTOL type
+  certification campaigns, and Collaborative Combat Aircraft production contracts that assume
+  autonomy no one has a validated method to test.</p>
+  <p>The precedent exists in adjacent domains. Berkeley&rsquo;s VerifAI falsified Boeing&rsquo;s
+  TaxiNet neural runway tracker in simulation and found that the <em>aircraft&rsquo;s own
+  shadow</em>, at specific sun angles and weather, drove it off the runway &mdash; a failure no
+  engineer would have enumerated, found by search, then closed by retraining. Automotive
+  followed the same path, and the durable value proved to be the scenario description, the
+  coverage metrics, and the evidence layer &mdash; not the simulator. Aviation has no
+  equivalent tooling. That is the opportunity.</p>
+
+  <h2><span class="no">02</span>What we tested</h2>
+  <p><strong>System under test.</strong> PX4-Autopilot mainline at commit
+  <code>544bccbc</code>, board configuration <code>px4_sitl_neural</code>: a TensorFlow-Lite
+  Micro network taking 15 state inputs to 4 motor commands. The network <em>is</em> the
+  position controller, not a monitor bolted onto PID. Simulated airframe: SIH quadrotor,
+  5&thinsp;m position hold.</p>
+  <p><strong>Control arm.</strong> The identical airframe and scenario flown under PX4&rsquo;s
+  classical stack. Every claim below is a paired comparison on the same scenario &mdash; the
+  only way to separate &ldquo;learned control behaves differently&rdquo; from &ldquo;this
+  scenario is hard.&rdquo;</p>
+  <p><strong>Adversarial event.</strong> Each flight establishes a stable hold, then the plant
+  changes underneath the trimmed controller: a mass step (0.5&ndash;2.5&times;) and a
+  thrust-ceiling step (0.5&ndash;1.2&times;) at t+10&thinsp;s, over static inertia
+  (0.5&ndash;3.0&times;) and drag perturbations. 400 scenarios by Latin-hypercube sampling,
+  both arms, 800 flights, 100% scored.</p>
+  <p><strong>Oracle.</strong> Continuous safety margin, normalized so 0 is the limit: lateral
+  drift from the hold point (limit 3&thinsp;m) and altitude error against the setpoint (limit
+  2.5&thinsp;m), <code>min()</code> of the two, crashes clamped to &minus;1. Continuous rather
+  than boolean, because the margin is what a search method optimizes and what an evidence
+  package must show.</p>
+
+  <h2><span class="no">03</span>Result 1 — identical verdicts, categorically different failures</h2>
+  <table>
+    <tr><th>metric</th><th>classical (PID)</th><th>neural (mc_nn_control)</th></tr>
+    <tr><td>Failure rate</td><td>24.5%</td><td>27.0%</td></tr>
+    <tr><td>Crashes</td><td>92</td><td>108</td></tr>
+    <tr><td>50% failure threshold (mass step)</td><td>2.0&ndash;2.25&times;</td><td>2.0&ndash;2.25&times;</td></tr>
+    <tr><td>Failure rate, pre-boundary band (1.75&ndash;2.0&times;)</td><td>4%</td><td class="hot">22%</td></tr>
+    <tr><td>Crashes with &gt;1&thinsp;m lateral drift</td><td class="cool">0&nbsp;(0%)</td><td class="hot">102&nbsp;(94%)</td></tr>
+    <tr><td>Max lateral drift</td><td>0.16&thinsp;m</td><td class="hot">3.42&thinsp;m</td></tr>
+    <tr><td>Drift in recovered scenarios (median)</td><td>0.11&thinsp;m</td><td>0.13&thinsp;m</td></tr>
+    <tr><td>Scenarios failed by this arm alone</td><td class="cool">0</td><td class="hot">10</td></tr>
+  </table>
+  <p><strong>The failure mode is qualitatively different, not quantitatively worse.</strong>
+  The classical stack, when overwhelmed, descends while holding lateral position &mdash; a
+  degraded but controlled failure. The neural controller loses position control as well,
+  drifting up to 3.4&thinsp;m. Zero versus 94% is not a statistical trend requiring careful
+  interpretation; it is a categorical behavioral difference.</p>
+  <p><strong>It is a cliff, not a gradient.</strong> In scenarios both controllers survive
+  they are indistinguishable (0.13 vs 0.11&thinsp;m median drift). The network is fine until
+  it isn&rsquo;t &mdash; the characteristic hazard of learned components, and precisely what
+  nominal-envelope testing cannot surface.</p>
+  <p><strong>The disagreement is asymmetric.</strong> Ten scenarios fail under the neural
+  controller that the classical stack survives; zero the reverse.</p>
+  <div class="callout">A conventional pass/fail campaign would compare 27.0% against 24.5%,
+  find them within noise, and clear the neural controller as equivalent. The severity
+  difference is invisible without a continuous, severity-aware oracle.</div>
+  <figure>
+    <img src="assets/neural-severity.png" width="1455" height="601" loading="lazy"
+      alt="Box plots: in recovered scenarios the two controllers' lateral drift distributions are nearly identical; in crash scenarios the classical controller stays near 0.10 m while the neural controller centers on 1.51 m, reaching 3.4 m.">
+    <figcaption><span>Fig. 1 — lateral drift at failure, 800 runs</span><span>analysis_px4/report</span></figcaption>
+  </figure>
+  <figure>
+    <video controls preload="none" playsinline muted poster="assets/neural-pair-poster.png"
+      aria-label="Side-by-side replay of scenario 115: classical PID absorbs the mass step and holds; the neural controller descends to ground contact while drifting two meters sideways.">
+      <source src="assets/neural-pair.mp4" type="video/mp4">
+    </video>
+    <figcaption><span>Fig. 2 — scenario 115, both controllers, from the flight logs</span><span>23&thinsp;s</span></figcaption>
+  </figure>
+
+  <h2><span class="no">04</span>Result 2 — guided search maps the boundary ~3&times; faster</h2>
+  <p>Failure discovery in an 8-dimensional scenario space is a sampling problem, and brute
+  force is a serious baseline: at a 46.5% base failure rate, random sampling finds failures
+  easily. The scarce quantity is the <strong>boundary</strong> &mdash; the thin band where the
+  system transitions from safe to unsafe &mdash; which is what a certification argument must
+  characterize.</p>
+  <p>We fitted proxy oracles to a 2,000-run fixed-wing baseline (independent airframe and
+  autopilot; holdout R&sup2; 0.59&ndash;0.73), injected the measured &plusmn;0.07 simulator
+  nondeterminism as query noise, and scored strategies on distinct failure and boundary cells
+  discovered within a 200-query budget against Latin-hypercube sampling at the same budget and
+  seeds.</p>
+  <table>
+    <tr><th></th><th>vs uniform sampling</th></tr>
+    <tr><td>Composite coverage ratio</td><td>1.54&times;</td></tr>
+    <tr><td><strong>Boundary-band points found</strong></td><td class="hot">2.99&times; / 3.07&times; / 3.42&times; (GBM / RF / MLP proxy)</td></tr>
+    <tr><td>Failure points found</td><td>1.07&ndash;1.23&times;</td></tr>
+  </table>
+  <p>The method: an ARD Gaussian-process surrogate with marginal-likelihood lengthscales
+  (scenario sensitivity varies ~20&times; across dimensions), driven by an
+  expected-coverage-improvement acquisition over the cell partition rather than margin
+  minimization, with observations Winsorized so the surrogate spends its capacity on the level
+  set instead of modeling crash plateaus that earn no additional coverage.</p>
+  <p><strong>Audit.</strong> Two ways this claim could be soft, both checked: collapsing a
+  physically inert coordinate changes the ratio by 0.9% (the discoveries are distinct
+  scenarios, not bookkeeping), and the advantage holds across all three surrogate families. A
+  naive surrogate-guided baseline scored 1.006 &mdash; statistically identical to brute force
+  &mdash; so the gain comes from the method, not from &ldquo;using a model.&rdquo;</p>
+
+  <h2><span class="no">05</span>What we also found about the tooling</h2>
+  <ul>
+    <li><strong>PX4&rsquo;s <code>failure motor off</code> injection is inert under the SIH
+    backend.</strong> The command is accepted and logged by the failure module; the simulator
+    does not implement it. A test campaign built on that lever would report coverage it does
+    not have.</li>
+    <li><strong>Live parameter writes do reach the SIH plant</strong> &mdash; a mass step from
+    1&times; to 3&times; mid-hover drops the aircraft 5&thinsp;m to ground contact &mdash; so
+    mid-flight plant perturbation is a valid injection mechanism where motor failure is not.</li>
+    <li><strong>Telemetry-side failure modes read exactly like flight failures.</strong> PX4
+    streams position only to an endpoint it has heard from, and drops a ground station that
+    stops heartbeating; either produces zero samples, which naive harness code scores as a
+    crashed flight. Our first campaign scored 48 successful hovers as takeoff failures for
+    this reason.</li>
+  </ul>
+  <div class="callout amber">The gap between &ldquo;we ran 10,000 scenarios&rdquo; and
+  &ldquo;we generated valid evidence&rdquo; is filled with failures of exactly this kind, and
+  they are silent.</div>
+
+  <h2><span class="no">06</span>Caveats</h2>
+  <ul>
+    <li><strong>SIH is a coarse simulator.</strong> Simple internal hover dynamics, no wind
+    field. Results establish <em>behavioral difference under plant perturbation</em>, not
+    flight-representative failure rates.</li>
+    <li><strong>Airframe mismatch.</strong> <code>mc_nn_control</code> ships trained for an
+    X500 V2; the SIH quad is a different vehicle, so degradation is expected. The classical
+    arm on the identical airframe is the control for exactly this &mdash; the comparison is
+    valid even though the absolute rates are not transferable.</li>
+    <li><strong>Scope: hover and position hold.</strong> No trajectory tracking, no
+    mission-level behavior, no perception in the loop.</li>
+    <li><strong>The search result is measured on proxy oracles</strong>, developed offline
+    against a 2,000-run baseline rather than live runs. Live confirmation on the neural
+    controller is the immediate next step.</li>
+  </ul>
+
+  <h2><span class="no">07</span>Where this goes</h2>
+  <p><strong>Near term:</strong> run the guided search live against the neural controller and
+  confirm the ~3&times; boundary efficiency on the system under test; extend the scenario
+  space to trajectory tracking and wind. Days of work on existing infrastructure.</p>
+  <p><strong>The product:</strong> the scenario schema, continuous oracles, guided search, and
+  evidence package are autopilot-agnostic; nothing in the method assumed PX4 or ArduPilot. The
+  engagement model is to point this at a partner&rsquo;s stack &mdash; on-premises, no data
+  leaves &mdash; and deliver the failure map and evidence for a learned component they cannot
+  otherwise certify.</p>
+  <p><strong>Perception is the next frontier, and it strengthens the case.</strong> As
+  autopilots consume cameras and radar, the input space stops being samplable by brute force
+  entirely, and guided search becomes the only viable method. The plant layer for that already
+  exists in the open &mdash; world foundation models, Gaussian-splat scene reconstruction
+  &mdash; and is not where a small team should compete. The search and evidence layer above it
+  is.</p>
+
+  <div class="foot">
+    <span>PeregrineX &middot; adversarial safety testing for autonomous aircraft</span>
+    <span>artifacts available for technical review</span>
+  </div>
+</article>
+</body>
+</html>

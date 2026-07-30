@@ -1,0 +1,44 @@
+{
+  "commit": "544bccbc1e83fecfabe357c6df745c62a361f075",
+  "airframe": "10040_sihsim_quadx",
+  "phases": {
+    "takeoff": {
+      "ok": true,
+      "alt_m": 2.5
+    },
+    "hover_classical": {
+      "n": 762,
+      "drift_m": 0.016,
+      "xy_std_m": 0.034,
+      "z_std_m": 0.007,
+      "mean_alt_m": 2.5
+    },
+    "engage": {
+      "engaged": true
+    },
+    "hover_neural": {
+      "n": 1468,
+      "drift_m": 0.063,
+      "xy_std_m": 0.034,
+      "z_std_m": 0.05,
+      "mean_alt_m": 2.78
+    },
+    "reposition_ack": 0,
+    "hover_neural_2": {
+      "n": 735,
+      "drift_m": 0.04,
+      "xy_std_m": 0.032,
+      "z_std_m": 0.005,
+      "mean_alt_m": 2.78
+    },
+    "nav_state_line": [
+      "INFO  [commander] navigation mode: Hold",
+      "INFO  [commander] user intended navigation mode: Hold",
+      "INFO  [commander] External Mode 1: nav_state: 23, name: Neural Control"
+    ],
+    "land": {
+      "alt_m": 0.297
+    }
+  },
+  "nn_console_mentions": 3
+}

@@ -1,0 +1,13 @@
+{
+  "id": "jacobruan1/aviationsim-px4-neural-build",
+  "title": "aviationsim-px4-neural-build",
+  "code_file": "px4_neural_build.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

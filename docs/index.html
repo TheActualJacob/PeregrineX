@@ -428,6 +428,7 @@ h2 em{font-style:normal;color:var(--caution)}
     <a class="wordmark" href="#">Peregrine<i>X</i></a>
     <nav class="top-nav" aria-label="Site">
       <a href="#evidence">Evidence</a>
+      <a href="#neural">Neural</a>
       <a href="#method">Method</a>
       <a href="#why-now">Why now</a>
     </nav>
@@ -650,10 +651,117 @@ h2 em{font-style:normal;color:var(--caution)}
   </article>
 </section>
 
+<!-- ═══ NEURAL CAMPAIGN ═══ -->
+<section id="neural" class="section wrap" aria-labelledby="neural-h">
+  <div class="sec-head reveal">
+    <p class="kicker">The neural campaign</p><span class="rule"></span><p class="kicker">03</p>
+  </div>
+  <div class="evidence-intro reveal">
+    <h2 id="neural-h">Then we pointed it at an autopilot <em>whose control law is a neural network.</em></h2>
+    <p>PX4 mainline now ships <strong>mc_nn_control</strong> &mdash; a TensorFlow-Lite network whose learned parameters output motor commands directly. It has no published failure characterization. So we produced one: <strong>800 adversarial flights, every scenario flown twice</strong> &mdash; once under the network, once under the classical PID stack on the identical airframe. The classical arm is the control; the difference between the columns is the neural controller.</p>
+    <div class="provenance">
+      <span>Stack <b>PX4 mainline @ 544bccbc</b></span>
+      <span>Campaign <b>400 scenarios &times; 2 controllers</b></span>
+      <span>Scored <b>800 / 800</b></span>
+      <span>Date <b>2026-07-30</b></span>
+    </div>
+  </div>
+
+  <!-- Exhibit E -->
+  <article class="exhibit reveal" aria-labelledby="exe-h">
+    <div class="ex-head">
+      <span class="ex-tag">Exhibit E</span>
+      <h3 id="exe-h">One scenario. Two controllers.</h3>
+      <span class="ex-meta">scenario 115 of 400 &middot; instrumented replay</span>
+    </div>
+    <div class="anatomy">
+      <div>
+        <ol class="timeline">
+          <li>
+            <span class="t">T&minus;0:06</span>
+            <div class="d"><b>Both aircraft in a stable 5&thinsp;m hold</b><span>Same simulated quadrotor, same conditions. Left: PX4&rsquo;s classical PID stack. Right: the neural network.</span></div>
+          </li>
+          <li class="crit">
+            <span class="t">T+0:00</span>
+            <div class="d"><b>The plant changes under the trimmed controller</b><span>Mass steps to &times;1.83. The thrust ceiling steps to &times;1.19 &mdash; the aircraft has <em>more</em> control authority than nominal, not less.</span></div>
+          </li>
+          <li>
+            <span class="t">T+0:02</span>
+            <div class="d"><b>PID dips 1.5&thinsp;m, recovers, re-centers</b><span>Drift never exceeds 0.11&thinsp;m. A degraded but controlled response &mdash; and a pass, margin +0.44.</span></div>
+          </li>
+          <li class="crit">
+            <span class="t">T+0:08</span>
+            <div class="d"><b>The network sags, rallies briefly, then departs</b><span>It falls while veering 2.1&thinsp;m sideways &mdash; losing lateral control on the way down. Ground contact at T+8.</span></div>
+          </li>
+        </ol>
+        <div class="scenario-json" aria-label="The exact scenario that separates the two controllers">
+          <div class="bar"><span>scenario 115 &middot; campaign seed 42</span><span>replayable</span></div>
+          <pre>{
+  <span class="k">"mass_mul"</span>:    <span class="v">1.8251</span>,
+  <span class="k">"tmax_mul"</span>:    <span class="v">1.1901</span>,
+  <span class="k">"ixx_mul"</span>:     <span class="v">2.5282</span>,
+  <span class="k">"kdv"</span>:         <span class="v">0.0782</span>,
+
+  <span class="k">"classical"</span>:   <span class="v">"HELD  margin +0.44"</span>,
+  <span class="k">"neural"</span>:      <span class="vr">"CRASHED  drift 2.05 m"</span>
+}</pre>
+        </div>
+        <p class="anatomy-note"><strong>One of ten.</strong> Across 400 paired scenarios, ten fail under the network that the classical stack survives. <strong>Zero fail the other way.</strong> Re-flying this scenario reproduces both outcomes within the noise floor.</p>
+      </div>
+      <div>
+        <figure class="paper-card tilt-r video-card">
+          <video id="pairVideo" controls preload="none" playsinline muted
+            poster="assets/neural-pair-poster.png"
+            width="1276" height="726"
+            aria-label="Side-by-side instrumented replay of scenario 115. Left: the classical PID controller absorbs a mid-hover mass step, dips and recovers to a steady 5 meter hold with 0.07 meters of drift — stamped HELD. Right: the neural controller sags, briefly recovers, then descends to ground contact while drifting 2 meters sideways — stamped CRASHED.">
+            <source src="assets/neural-pair.mp4" type="video/mp4">
+          </video>
+          <figcaption>
+            <span>Fig. E-1 &mdash; same plant step, both controllers</span>
+            <span>23&thinsp;s &middot; from the flight logs</span>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </article>
+
+  <!-- Exhibit F -->
+  <article class="exhibit reveal" aria-labelledby="exf-h">
+    <div class="ex-head">
+      <span class="ex-tag">Exhibit F</span>
+      <h3 id="exf-h">Pass/fail testing cannot see the difference</h3>
+      <span class="ex-meta">200 crashes &middot; lateral drift at failure</span>
+    </div>
+    <figure class="paper-card">
+      <img src="assets/neural-severity.png" width="1455" height="601" loading="lazy"
+        alt="Two box plots of maximum lateral drift. Left, recovered scenarios: classical and neural controllers are nearly identical, medians 0.11 and 0.13 meters. Right, crash scenarios: the classical controller stays near 0.10 meters while the neural controller's distribution sits around a 1.51 meter median, reaching 3.4 meters.">
+      <figcaption>
+        <span>Fig. F-1 &mdash; how each controller fails</span>
+        <span>analysis_px4/report &middot; 800 runs</span>
+      </figcaption>
+    </figure>
+    <p class="ex-caption">By the numbers a test plan would quote, the controllers are equivalent: <strong>24.5% vs 27.0% failure rate, same crash boundary.</strong> The severity data says otherwise. When the classical stack fails, it descends <em>while holding position</em> &mdash; <strong>0 of its 92 crashes</strong> exceed 1&thinsp;m of drift. When the network fails, it loses lateral control too &mdash; <strong>102 of its 108 crashes</strong> do, drifting up to 3.4&thinsp;m. And in scenarios both survive, they are indistinguishable. <span class="r">The network is fine until it isn&rsquo;t.</span> That cliff is the signature hazard of learned control &mdash; and it is invisible to pass/fail testing.</p>
+  </article>
+
+  <!-- Exhibit G -->
+  <article class="exhibit reveal" aria-labelledby="exg-h">
+    <div class="ex-head">
+      <span class="ex-tag">Exhibit G</span>
+      <h3 id="exg-h">Finding the boundary is the hard part &mdash; we made it 3&times; cheaper</h3>
+      <span class="ex-meta">guided search vs brute force &middot; audited</span>
+    </div>
+    <p class="ex-caption" style="margin-top:.4rem">Failure examples are cheap &mdash; at a 46.5% base rate, random sampling trips over them. The scarce quantity is the <strong>boundary</strong>: the thin band where a system transitions from safe to unsafe, which is what a certification argument must characterize. Our guided search &mdash; a Gaussian-process surrogate driven by a coverage-seeking acquisition &mdash; finds <strong>~3&times; more boundary-band points than uniform sampling at the same budget</strong> (2.99&times;/3.07&times;/3.42&times; across three independent proxy models), audited against metric artifacts: collapsing a physically inert dimension moves the result by 0.9%. A naive surrogate baseline scores 1.006 &mdash; indistinguishable from brute force. The gain is the method, not the model.</p>
+  </article>
+
+  <div class="evidence-intro reveal" style="margin-top:clamp(2.5rem,6vh,4rem)">
+    <p><strong>The full technical memo</strong> &mdash; method, results, tooling findings, and the caveats stated plainly &mdash; is on one page: <a href="memo.html" style="color:var(--scope)">the neural campaign memo</a>. Every number regenerates from the archived scenario files and flight logs.</p>
+  </div>
+</section>
+
 <!-- ═══ METHOD ═══ -->
 <section id="method" class="section wrap" aria-labelledby="method-h">
   <div class="sec-head reveal">
-    <p class="kicker">The method</p><span class="rule"></span><p class="kicker">03</p>
+    <p class="kicker">The method</p><span class="rule"></span><p class="kicker">04</p>
   </div>
   <h2 id="method-h" class="reveal">From simulation to <em>sign-off.</em></h2>
   <ol class="method-list" style="margin-top:clamp(2rem,5vh,3.4rem)">
@@ -684,7 +792,7 @@ h2 em{font-style:normal;color:var(--caution)}
 <!-- ═══ WHY NOW ═══ -->
 <section id="why-now" class="section wrap" aria-labelledby="why-h">
   <div class="sec-head reveal">
-    <p class="kicker">Why now</p><span class="rule"></span><p class="kicker">04</p>
+    <p class="kicker">Why now</p><span class="rule"></span><p class="kicker">05</p>
   </div>
   <h2 id="why-h" class="reveal">Autonomy is arriving faster than the ability to <em>prove it safe.</em></h2>
   <ul class="log" style="margin-top:clamp(2rem,5vh,3.4rem)">

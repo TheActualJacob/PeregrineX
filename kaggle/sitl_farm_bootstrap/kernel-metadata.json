@@ -1,0 +1,15 @@
+{
+  "id": "jacobruan1/aviationsim-ardupilot-sitl-build-smoke-test",
+  "title": "aviationsim-ardupilot-sitl-build-smoke-test",
+  "code_file": "sitl_farm_bootstrap.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "jacobruan1/aviationsim-week1-evidence-v3"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

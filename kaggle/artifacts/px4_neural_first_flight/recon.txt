@@ -1,0 +1,78 @@
+$ px4-commander status
+INFO  [commander] Disarmed
+INFO  [commander] prearm safety: Off
+INFO  [commander] navigation mode: Hold
+INFO  [commander] user intended navigation mode: Hold
+INFO  [commander] in failsafe: no
+INFO  [commander] External Mode 1: nav_state: 23, name: Neural Control
+commander: cycle: 885 events, 0us elapsed, 0.00us avg, min 0us max 0us 0.000us rms
+commander: preflight check: 98 events, 0us elapsed, 0.00us avg, min 0us max 0us 0.000us rms
+
+$ px4-mc_nn_control status
+INFO  [mc_nn_control] Neural control flight mode: Registered, mode id: 23, arming check id: 0
+
+$ px4-param show MC_NN*
+Symbols: x = used, + = saved, * = unsaved, l = locked
+x     MC_NN_EN [565,1034] : 1
+x     MC_NN_MANL_CTRL [566,1035] : 1
+x     MC_NN_MAX_RPM [567,1036] : 22000
+x     MC_NN_MIN_RPM [568,1037] : 1000
+x     MC_NN_THRST_COEF [569,1038] : 1.2000
+
+ 971/1919 parameters used.
+
+$ px4-param show SIH_*
+Symbols: x = used, + = saved, * = unsaved, l = locked
+x     SIH_DISTSNSR_MAX [885,1462] : 100.0000
+x     SIH_DISTSNSR_MIN [886,1463] : 0.0000
+x     SIH_DISTSNSR_OVR [887,1464] : -1.0000
+x     SIH_F_CP0 [888,1465] : 0.0000
+x     SIH_F_CP1 [889,1466] : 0.0000
+x     SIH_F_CP2 [890,1467] : 0.0000
+x     SIH_F_CT0 [891,1468] : 0.0000
+x     SIH_F_CT1 [892,1469] : 0.0000
+x     SIH_F_CT2 [893,1470] : 0.0000
+x     SIH_F_DIA_INCH [894,1471] : 0.1000
+x     SIH_F_Q_MAX [895,1472] : 0.0165
+x     SIH_F_RPM_MAX [896,1473] : 6000.0000
+x     SIH_F_T_MAX [897,1474] : 2.0000
+x     SIH_IXX [898,1475] : 0.0250
+x     SIH_IXY [899,1476] : 0.0000
+x     SIH_IXZ [900,1477] : 0.0000
+x     SIH_IYY [901,1478] : 0.0250
+x     SIH_IYZ [902,1479] : 0.0000
+x     SIH_IZZ [903,1480] : 0.0300
+x     SIH_KDV [904,1481] : 1.0000
+x     SIH_KDW [905,1482] : 0.0250
+x     SIH_LOC_H0 [906,1483] : 489.4000
+x     SIH_LOC_LAT0 [907,1484] : 47.3977
+x     SIH_LOC_LON0 [908,1485] : 8.5456
+x     SIH_LOC_YAW0 [909,1486] : 0.0000
+x     SIH_L_PITCH [910,1487] : 0.2000
+x     SIH_L_ROLL [911,1488] : 0.2000
+x     SIH_MASS [912,1489] : 1.0000
+x     SIH_Q_MAX [913,1490] : 0.1000
+x     SIH_RNGBC_NOISE [914,1491] : 30.0000
+x     SIH_T_MAX [915,1492] : 5.0000
+x     SIH_T_TAU [916,1493] : 0.0500
+x     SIH_VEHICLE_TYPE [917,1494] : 0
+x     SIH_WIND_E [918,1495] : 0.0000
+x     SIH_WIND_N [919,1496] : 0.0000
+
+ 971/1919 parameters used.
+
+$ px4-commander check
+INFO  [commander] Preflight check: OK
+
+== engage ==
+INFO  [mc_nn_control] Neural control flight mode: Registered, mode id: 23, arming check id: 0
+
+
+INFO  [commander] Armed
+INFO  [commander] prearm safety: Off
+INFO  [commander] navigation mode: Hold
+INFO  [commander] user intended navigation mode: Hold
+INFO  [commander] in failsafe: no
+INFO  [commander] External Mode 1: nav_state: 23, name: Neural Control
+commander: cycle: 4742 events, 0us elapsed, 0.00us avg, min 0us max 0us 0.000us rms
+commander: preflight check: 528 events, 0us elapsed, 0.00us avg, min 0us max 0us 0.000us rms
